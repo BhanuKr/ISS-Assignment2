@@ -1,4 +1,3 @@
-
 #include <omp.h>
 #include <iostream>
 #include <vector>
@@ -42,6 +41,17 @@ int main() {
         std::iota(A.begin(), A.end(), 1);
         std::vector<int> B(size);
 
+        // Measure sequential execution time
+        double sequential_time = 0.0;
+        for (int run = 0; run < 5; ++run) {
+            auto start = std::chrono::high_resolution_clock::now();
+            prefix_sum(A, B, 1);
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> duration = end - start;
+            sequential_time += duration.count();
+        }
+        sequential_time /= 5.0;
+
         for (int num_threads : threads) {
             double total_time = 0.0;
 
@@ -54,7 +64,8 @@ int main() {
             }
 
             double average_time = total_time / 5.0;
-            std::cout << "Size: " << size << ", Threads: " << num_threads << ", Time: " << average_time << " seconds" << std::endl;
+            double speedup = sequential_time / average_time;
+            std::cout << "Size: " << size << ", Threads: " << num_threads << ", Time: " << average_time << " seconds, Speedup: " << speedup << std::endl;
         }
     }
 

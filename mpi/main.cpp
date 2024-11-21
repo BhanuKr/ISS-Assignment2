@@ -34,17 +34,34 @@ int main(int argc, char** argv) {
         }
     }
 
-    size_t local_size = ARRAY_SIZE / size;
-    std::vector<int> local_array(local_size);
-    MPI_Scatter(array.data(), local_size, MPI_INT, local_array.data(), local_size, MPI_INT, 0, comm);
-
     // Get the element to search for
     int target;
     if (rank == 0) {
-        std::cout << "Enter the element to search for: ";
-        std::cin >> target;
+        target = std::rand() % 5000000 + 1;
     }
     MPI_Bcast(&target, 1, MPI_INT, 0, comm);
+
+    // Calculate serial execution time on rank 0
+    double serial_time = 0.0;
+    if (rank == 0) {
+        timer::time_point serial_start = timer::now();
+        int serial_index = -1;
+        for (size_t i = 0; i < ARRAY_SIZE; ++i) {
+            if (array[i] == target) {
+                serial_index = i;
+                break;
+            }
+        }
+        timer::time_point serial_end = timer::now();
+        serial_time = get_time_ms(serial_end - serial_start);
+    }
+
+    // Broadcast serial_time to all processes
+    MPI_Bcast(&serial_time, 1, MPI_DOUBLE, 0, comm);
+
+    size_t local_size = ARRAY_SIZE / size;
+    std::vector<int> local_array(local_size);
+    MPI_Scatter(array.data(), local_size, MPI_INT, local_array.data(), local_size, MPI_INT, 0, comm);
 
     // Start timer
     MPI_Barrier(comm);
@@ -77,7 +94,10 @@ int main(int argc, char** argv) {
         } else {
             std::cout << "Element not found" << std::endl;
         }
-        std::cout << "Time: " << get_time_ms(end - start) << " seconds" << std::endl;
+        double time_taken = get_time_ms(end - start);
+        std::cout << "Time: " << time_taken << " milliseconds" << std::endl;
+        double speedup = serial_time / time_taken;
+        std::cout << "Speedup: " << speedup << std::endl;
     }
 
     // Finish up MPI
